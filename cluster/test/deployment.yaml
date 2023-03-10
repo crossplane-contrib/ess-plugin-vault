@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ess-plugin-vault
+  namespace: crossplane-system
+  labels:
+    app: ess-plugin-vault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ess-plugin-vault
+  template:
+    metadata:
+      labels:
+        app: ess-plugin-vault
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-inject-token: "true"
+        vault.hashicorp.com/role: "crossplane-plugin"
+        vault.hashicorp.com/agent-run-as-user: "65532"
+    spec:
+      serviceAccountName: crossplane-plugin
+      containers:
+        - name: ess-plugin-vault
+          image: ess-plugin-vault-arm64:v1.0.0
+          ports:
+            - containerPort: 4040
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+          env:
+            - name: GRPC_GO_LOG_SEVERITY_LEVEL
+              value: "info"
+            - name: GRPC_GO_LOG_VERBOSITY_LEVEL
+              value: "99"
+      volumes:
+        - name: certs
+          secret:
+            secretName: server-certs
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ess-plugin-vault
+  namespace: crossplane-system
+spec:
+  selector:
+    app: ess-plugin-vault
+  ports:
+    - protocol: TCP
+      port: 4040
+      targetPort: 4040
+
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crossplane-plugin
+  namespace: crossplane-system
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: crossplane-plugin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: system:serviceaccount:crossplane-system:crossplane-plugin
+roleRef:
+  kind: ClusterRole
+  name: crossplane-plugin
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  namespace: crossplane-system
+  name: crossplane-plugin
+rules:
+  - apiGroups: ["secrets.crossplane.io"]
+    resources: ["*"]
+    verbs: ["*"]

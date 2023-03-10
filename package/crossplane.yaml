@@ -1,0 +1,17 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+#kind: Plugin
+kind: Provider
+metadata:
+  name: ess-plugin-vault
+  annotations:
+    meta.crossplane.io/maintainer: Crossplane Maintainers <info@crossplane.io>
+    meta.crossplane.io/source: github.com/crossplane-contrib/provider-gcp
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      The External Secret Store for Vault for managing secrets.
+    meta.crossplane.io/readme: |
+      `exteranal-vault` is the Crossplane external secret store for the [Vault](https://www.vaultproject.io/).
+      If you encounter an issue please reach out on
+      [slack.crossplane.io](https://slack.crossplane.io) and create an issue in
+      the [crossplane-contrib/ess-plugin-vault](https://github.com/crossplane-contrib/ess-plugin-vault)
+      repo.
