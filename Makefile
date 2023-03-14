@@ -14,6 +14,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 # ====================================================================================
 # Setup Output
 
+S3_BUCKET ?= crossplane.releases
 -include build/makelib/output.mk
 
 # ====================================================================================
@@ -35,13 +36,6 @@ GO111MODULE = on
 -include build/makelib/golang.mk
 
 # ====================================================================================
-# Setup Kubernetes tools
-
-UP_VERSION = v0.13.0
-UP_CHANNEL = stable
--include build/makelib/k8s_tools.mk
-
-# ====================================================================================
 # Setup Images
 #REGISTRY_ORGS = ""
 IMAGES = ess-plugin-vault
@@ -61,18 +55,15 @@ fallthrough: submodules
 	@make
 
 # ====================================================================================
-# Setup XPKG
+# Setup Helm
 
-XPKG_REG_ORGS ?= xpkg.upbound.io/crossplane-contrib index.docker.io/crossplanecontrib
-# NOTE(hasheddan): skip promoting on xpkg.upbound.io as channel tags are
-# inferred.
-XPKG_REG_ORGS_NO_PROMOTE ?= xpkg.upbound.io/ess-plugin-vault
-XPKGS = ess-plugin-vault
--include build/makelib/xpkg.mk
-
-# NOTE(hasheddan): we force image building to happen prior to xpkg build so that
-# we ensure image is present in daemon.
-xpkg.build.ess-plugin-vault: do.build.images
+USE_HELM3 = true
+HELM_BASE_URL = https://charts.crossplane.io
+HELM_S3_BUCKET = crossplane.charts
+HELM_CHARTS = $(PROJECT_NAME)
+HELM_CHART_LINT_ARGS_$(PROJECT_NAME) = --set nameOverride='',imagePullSecrets=''
+-include build/makelib/k8s_tools.mk
+-include build/makelib/helm.mk
 
 # ====================================================================================
 # Targets

@@ -18,10 +18,10 @@ limitations under the License.
 */
 
 // Remove existing manifests
-//go:generate rm -rf ../package/crds
+//go:generate rm -rf ../cluster/charts/ess-plugin-vault/crds
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./config/v1alpha1 crd:crdVersions=v1 output:artifacts:config=../package/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./config/v1alpha1 crd:crdVersions=v1 output:artifacts:config=../cluster/charts/ess-plugin-vault/crds
 
 package apis
 
