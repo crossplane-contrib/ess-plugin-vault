@@ -5,10 +5,9 @@
 replicaCount: 1
 
 image:
-  repository: nginx
+  repository: docker.io/crossplane-contrib/ess-plugin-vault
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: %%VERSION%%
 
 tls:
   secretName: ess-plugin-server
