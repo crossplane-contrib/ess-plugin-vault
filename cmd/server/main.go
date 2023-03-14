@@ -1,15 +1,27 @@
 package main
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/alecthomas/kong"
+	"github.com/crossplane/crossplane-runtime/pkg/certificates"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
+	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/crossplane-contrib/ess-plugin-vault/pkg/server"
+	"github.com/crossplane-contrib/ess-plugin-vault/apis/config/v1alpha1"
+	"github.com/crossplane-contrib/ess-plugin-vault/pkg/plugin"
+	proto "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1"
 )
 
 var cli struct {
@@ -24,21 +36,40 @@ var cli struct {
 func main() {
 	ctx := kong.Parse(&cli)
 	zl := zap.New(zap.UseDevMode(cli.Debug))
-
 	logger := logging.NewLogrLogger(zl.WithName("ess-plugin-vault"))
-	logger.Info("Starting the External Secrets Store Vault Plugin")
+	logger.Info("Starting Crossplane External Secrets Store Plugin for Vault")
+
+	s := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(s)
+	ctx.FatalIfErrorf(err, "cannot add apis to scheme")
+
+	cfg, err := ctrl.GetConfig()
+	ctx.FatalIfErrorf(errors.Wrap(err, "cannot get config"))
+
+	kube, err := client.New(cfg, client.Options{Scheme: s})
+	ctx.FatalIfErrorf(err, "cannot create client")
+
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cli.Port))
+	ctx.FatalIfErrorf(err, "cannot listen on port %d", cli.Port)
 
 	shutdown := make(chan os.Signal, 1)
-
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 	serverErrors := make(chan error, 1)
 
-	gRPCServer, err := server.NewServer(cli.Port, cli.CertsPath)
+	tlsConfig, err := certificates.Load(cli.CertsPath, true)
+	ctx.FatalIfErrorf(err, "cannot load certificates")
+
+	grpcServer := grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)))
+	reflection.Register(grpcServer)
+
+	essServer, err := plugin.NewESSVault(kube, listener, grpcServer, plugin.WithLogger(logger))
 	ctx.FatalIfErrorf(err, "cannot create server")
+
+	proto.RegisterExternalSecretStoreServiceServer(grpcServer, essServer)
 
 	go func() {
 		logger.Info("GRPC server listening on port", "port", cli.Port)
-		serverErrors <- gRPCServer.Serve()
+		serverErrors <- essServer.Serve()
 	}()
 
 	select {
@@ -46,6 +77,6 @@ func main() {
 		ctx.FatalIfErrorf(err, "cannot start server")
 	case <-shutdown:
 		logger.Info("Shutting down the External Secrets Store Vault Plugin")
-		gRPCServer.GracefulStop()
+		essServer.GracefulStop()
 	}
 }
