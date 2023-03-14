@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"log"
 	"net"
 
@@ -49,6 +50,8 @@ type server struct {
 	listener   net.Listener
 	grpcServer *grpc.Server
 	kube       client.Client
+	logger     logging.Logger
+
 	ess.UnimplementedExternalSecretStorePluginServiceServer
 }
 
@@ -61,7 +64,7 @@ func (s *server) GracefulStop() {
 }
 
 // NewServer creates a new gRPC server and registers it.
-func NewServer(port int) (Server, error) {
+func NewServer(port int, certs string) (Server, error) {
 	sc := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(sc)
 	if err != nil {
@@ -89,7 +92,6 @@ func NewServer(port int) (Server, error) {
 
 	creds := credentials.NewTLS(tlsConfig)
 	s.grpcServer = grpc.NewServer(grpc.Creds(creds))
-	//s.grpcServer = grpc.NewServer(grpc.Creds(creds), grpc.UnaryInterceptor(middleFunc))
 
 	ess.RegisterExternalSecretStorePluginServiceServer(s.grpcServer, s)
 	reflection.Register(s.grpcServer)

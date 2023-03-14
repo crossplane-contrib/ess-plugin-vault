@@ -3,6 +3,7 @@ module github.com/crossplane-contrib/ess-plugin-vault
 go 1.19
 
 require (
+	github.com/alecthomas/kong v0.7.1
 	github.com/crossplane/crossplane-runtime v0.20.0-rc.0.0.20230322150943-cf3c7a09628a
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/vault/api v1.8.2
@@ -13,6 +14,9 @@ require (
 )
 
 require (
+	github.com/go-logr/zapr v1.2.3 // indirect
+	go.uber.org/multierr v1.8.0 // indirect
+	go.uber.org/zap v1.24.0 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
