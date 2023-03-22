@@ -37,8 +37,8 @@ GO111MODULE = on
 
 # ====================================================================================
 # Setup Images
-REGISTRY_ORGS ?= docker.io/crossplane-contrib
-IMAGES = ess-plugin-vault
+REGISTRY_ORGS ?= xpkg.upbound.io/crossplane-contrib
+IMAGES = ess-plugin-vault-server
 OSBASEIMAGE = gcr.io/distroless/static:nonroot
 -include build/makelib/imagelight.mk
 
