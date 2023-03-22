@@ -3,7 +3,7 @@ module github.com/crossplane-contrib/ess-plugin-vault
 go 1.19
 
 require (
-	github.com/crossplane/crossplane-runtime v0.19.0-rc.0.0.20221114195150-65044f043902
+	github.com/crossplane/crossplane-runtime v0.20.0-rc.0.0.20230322150943-cf3c7a09628a
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/vault/api v1.8.2
 	google.golang.org/grpc v1.51.0
@@ -98,5 +98,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-replace github.com/crossplane/crossplane-runtime => github.com/ezgidemirel/crossplane-runtime v0.17.0-rc.0.0.20230310092423-53d790234bc9
