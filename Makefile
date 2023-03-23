@@ -2,8 +2,7 @@
 # Setup Project
 
 PROJECT_NAME := ess-plugin-vault
-#PROJECT_REPO := github.com/crossplane/$(PROJECT_NAME)
-PROJECT_REPO := $(PROJECT_NAME)
+PROJECT_REPO := github.com/crossplane-contrib/$(PROJECT_NAME)
 
 PLATFORMS ?= linux_amd64 linux_arm64
 # -include will silently skip missing files, which allows us
@@ -11,11 +10,6 @@ PLATFORMS ?= linux_amd64 linux_arm64
 # "include" was used, the make command would fail and refuse
 # to run a target until the include commands succeeded.
 -include build/makelib/common.mk
-
-# ====================================================================================
-# Setup Output
-
--include build/makelib/output.mk
 
 # ====================================================================================
 # Setup Go
@@ -36,37 +30,28 @@ GO111MODULE = on
 -include build/makelib/golang.mk
 
 # ====================================================================================
-# Setup Kubernetes tools
-
-UP_VERSION = v0.13.0
-UP_CHANNEL = stable
--include build/makelib/k8s_tools.mk
-
-# ====================================================================================
 # Setup Images
-#REGISTRY_ORGS = ""
-IMAGES = ess-plugin-vault
+REGISTRY_ORGS ?= xpkg.upbound.io/crossplane-contrib
+IMAGES = ess-plugin-vault-server
 OSBASEIMAGE = gcr.io/distroless/static:nonroot
 -include build/makelib/imagelight.mk
 
 # ====================================================================================
-# Setup XPKG
+# Setup Helm
 
-XPKG_REG_ORGS ?= xpkg.upbound.io/crossplane-contrib index.docker.io/crossplanecontrib
-# NOTE(hasheddan): skip promoting on xpkg.upbound.io as channel tags are
-# inferred.
-XPKG_REG_ORGS_NO_PROMOTE ?= xpkg.upbound.io/ess-plugin-vault
-XPKGS = ess-plugin-vault
--include build/makelib/xpkg.mk
+USE_HELM3 = true
+HELM3_VERSION = v3.11.2
+HELM_OCI_URL = xpkg.upbound.io/crossplane-contrib
+HELM_CHARTS = $(PROJECT_NAME)
+HELM_CHART_LINT_ARGS_$(PROJECT_NAME) = --set nameOverride='',imagePullSecrets=''
 
-# NOTE(hasheddan): we force image building to happen prior to xpkg build so that
-# we ensure image is present in daemon.
-xpkg.build.ess-plugin-vault: do.build.images
-
+-include build/makelib/k8s_tools.mk
+-include makelib/helmoci.mk
 # ====================================================================================
-# Targets
-
-# run `make help` to see the targets and options
+# Setup Local Dev
+-include build/makelib/local.mk
+# ====================================================================================
+# Fallthrough should be before all other targets
 
 # We want submodules to be set up the first time `make` is run.
 # We manage the build/ folder and its Makefiles as a submodule.
@@ -77,14 +62,10 @@ fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make
 
-# NOTE(hasheddan): the build submodule currently overrides XDG_CACHE_HOME in
-# order to force the Helm 3 to use the .work/helm directory. This causes Go on
-# Linux machines to use that directory as the build cache as well. We should
-# adjust this behavior in the build submodule because it is also causing Linux
-# users to duplicate their build cache, but for now we just make it easier to
-# identify its location in CI so that we cache between builds.
-go.cachedir:
-	@go env GOCACHE
+# ====================================================================================
+# Targets
+
+# run `make help` to see the targets and options
 
 # NOTE(hasheddan): we must ensure up is installed in tool cache prior to build
 # as including the k8s_tools machinery prior to the xpkg machinery sets UP to
@@ -121,6 +102,8 @@ export ESS_PLUGIN_VAULT_HELP
 
 ess-plugin-vault.help:
 	@echo "$$ESS_PLUGIN_VAULT_HELP"
+
+local-dev: local.up local.deploy.$(PROJECT_NAME)
 
 help-special: ess-plugin-vault.help
 

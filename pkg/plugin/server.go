@@ -1,32 +1,20 @@
-package server
+package plugin
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"net"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/peer"
-	"google.golang.org/grpc/reflection"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	ess "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1"
-	"github.com/crossplane/crossplane-runtime/pkg/certificates"
 	constore "github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/crossplane-contrib/ess-plugin-vault/apis/config/v1alpha1"
 	vault "github.com/crossplane-contrib/ess-plugin-vault/pkg/vault"
-)
-
-var (
-	netListen = net.Listen
 )
 
 const (
@@ -34,80 +22,57 @@ const (
 	errVaultStore = "could not create new Vault Store"
 )
 
-// Server defines the available operations for gRPC server.
+// Server defines the available operations for gRPC ESSVault.
 type Server interface {
 	// Serve is called for serving requests.
 	Serve() error
-	// GracefulStop is called for stopping the server.
+	// GracefulStop is called for stopping the ESSVault.
 	GracefulStop()
 	// GetSecret returns the secret.
 	GetSecret(ctx context.Context, in *ess.GetSecretRequest) (*ess.GetSecretResponse, error)
 }
 
-// server implements Server.
-type server struct {
+// ESSVault implements Server.
+type ESSVault struct {
 	listener   net.Listener
 	grpcServer *grpc.Server
 	kube       client.Client
+	logger     logging.Logger
+
 	ess.UnimplementedExternalSecretStorePluginServiceServer
 }
 
-func (s *server) Serve() error {
-	return s.grpcServer.Serve(s.listener)
+type ESSVaultOption func(*ESSVault)
+
+func WithLogger(logger logging.Logger) ESSVaultOption {
+	return func(e *ESSVault) {
+		e.logger = logger
+	}
 }
 
-func (s *server) GracefulStop() {
-	s.grpcServer.GracefulStop()
-}
+// NewESSVault creates a new gRPC ESSVault and registers it.
+func NewESSVault(kube client.Client, listener net.Listener, gs *grpc.Server, opts ...ESSVaultOption) (*ESSVault, error) {
+	s := &ESSVault{
+		listener:   listener,
+		kube:       kube,
+		grpcServer: gs,
 
-// NewServer creates a new gRPC server and registers it.
-func NewServer(port int) (Server, error) {
-	sc := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(sc)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to add scheme")
+		logger: logging.NewNopLogger(),
 	}
 
-	cl, err := client.New(config.GetConfigOrDie(), client.Options{Scheme: sc})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create client")
+	for _, opt := range opts {
+		opt(s)
 	}
-
-	listener, err := netListen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		return nil, errors.Wrap(err, "tcp listening")
-	}
-
-	s := new(server)
-
-	s.listener = listener
-	s.kube = cl
-	tlsConfig, err := certificates.LoadMTLSConfig("/certs/ca.crt", "/certs/tls.crt", "/certs/tls.key", true)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load certificates")
-	}
-
-	creds := credentials.NewTLS(tlsConfig)
-	s.grpcServer = grpc.NewServer(grpc.Creds(creds))
-	//s.grpcServer = grpc.NewServer(grpc.Creds(creds), grpc.UnaryInterceptor(middleFunc))
-
-	ess.RegisterExternalSecretStorePluginServiceServer(s.grpcServer, s)
-	reflection.Register(s.grpcServer)
 
 	return s, nil
 }
 
-func middleFunc(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-	// get client tls info
-	if p, ok := peer.FromContext(ctx); ok {
-		if mTLS, ok := p.AuthInfo.(credentials.TLSInfo); ok {
-			for _, item := range mTLS.State.PeerCertificates {
-				fmt.Println(item.Issuer)
-				log.Println("request certificate subject:", item.Subject)
-			}
-		}
-	}
-	return handler(ctx, req)
+func (s *ESSVault) Serve() error {
+	return s.grpcServer.Serve(s.listener)
+}
+
+func (s *ESSVault) GracefulStop() {
+	s.grpcServer.GracefulStop()
 }
 
 func getConfig(ctx context.Context, kube client.Client, ref *ess.ConfigReference) (*v1alpha1.VaultConfig, error) {
@@ -123,7 +88,9 @@ func getConfig(ctx context.Context, kube client.Client, ref *ess.ConfigReference
 	return sc, nil
 }
 
-func (s *server) GetSecret(ctx context.Context, in *ess.GetSecretRequest) (*ess.GetSecretResponse, error) {
+func (s *ESSVault) GetSecret(ctx context.Context, in *ess.GetSecretRequest) (*ess.GetSecretResponse, error) {
+	s.logger.Debug("Getting secret", "name", in.Secret.ScopedName)
+
 	secret := new(constore.Secret)
 	sn := new(constore.ScopedName)
 	sn.Name = in.Secret.ScopedName
@@ -164,9 +131,10 @@ func (s *server) GetSecret(ctx context.Context, in *ess.GetSecretRequest) (*ess.
 	return resp, nil
 }
 
-func (s *server) ApplySecret(ctx context.Context, in *ess.ApplySecretRequest) (*ess.ApplySecretResponse, error) {
-	secret := new(constore.Secret)
+func (s *ESSVault) ApplySecret(ctx context.Context, in *ess.ApplySecretRequest) (*ess.ApplySecretResponse, error) {
+	s.logger.Debug("Applying secret", "name", in.Secret.ScopedName)
 
+	secret := new(constore.Secret)
 	if in.Secret != nil && len(in.Secret.Data) != 0 {
 		secret.Data = make(map[string][]byte, len(in.Secret.Data))
 		for k, v := range in.Secret.Data {
@@ -205,7 +173,9 @@ func (s *server) ApplySecret(ctx context.Context, in *ess.ApplySecretRequest) (*
 	return resp, nil
 }
 
-func (s *server) DeleteKeys(ctx context.Context, in *ess.DeleteKeysRequest) (*ess.DeleteKeysResponse, error) {
+func (s *ESSVault) DeleteKeys(ctx context.Context, in *ess.DeleteKeysRequest) (*ess.DeleteKeysResponse, error) {
+	s.logger.Debug("Deleting keys from secret", "name", in.Secret.ScopedName)
+
 	cfg, err := getConfig(ctx, s.kube, in.Config)
 	if err != nil {
 		return nil, errors.Wrap(err, errGetConfig)
