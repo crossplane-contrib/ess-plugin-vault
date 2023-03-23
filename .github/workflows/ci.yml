@@ -10,12 +10,11 @@ on:
 
 env:
   # Common versions
-  GO_VERSION: '1.19.4'
-  GOLANGCI_VERSION: 'v1.49'
+  GO_VERSION: '1.20.1'
+  GOLANGCI_VERSION: 'v1.51.2'
   DOCKER_BUILDX_VERSION: 'v0.8.2'
 
   UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
-
 
 jobs:
   detect-noop:
@@ -32,7 +31,6 @@ jobs:
           do_not_skip: '["workflow_dispatch", "schedule", "push"]'
           concurrent_skipping: false
 
-
   lint:
     runs-on: ubuntu-20.04
     needs: detect-noop
@@ -40,12 +38,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
 
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -53,10 +51,11 @@ jobs:
       # this action because it leaves 'annotations' (i.e. it comments on PRs to
       # point out linter violations).
       - name: Lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v3
         with:
           version: ${{ env.GOLANGCI_VERSION }}
           skip-go-installation: true
+          args: --timeout 3m
 
   check-diff:
     runs-on: ubuntu-20.04
@@ -65,12 +64,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
 
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -84,7 +83,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
 
@@ -92,7 +91,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -103,14 +102,12 @@ jobs:
 
   unit-tests:
     runs-on: ubuntu-20.04
-    needs:
-      - detect-noop
-      - build
+    needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
 
@@ -118,7 +115,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -133,9 +130,7 @@ jobs:
 
   publish-artifacts:
     runs-on: ubuntu-20.04
-    needs:
-      - detect-noop
-      - build
+    needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
 
     steps:
@@ -151,7 +146,7 @@ jobs:
           install: true
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: true
 
@@ -159,7 +154,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -179,4 +174,5 @@ jobs:
           password: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }}
 
       - name: Publish Artifacts
+        if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
         run: make publish BRANCH_NAME=${GITHUB_REF##*/}
