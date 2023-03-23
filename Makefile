@@ -12,12 +12,6 @@ PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/common.mk
 
 # ====================================================================================
-# Setup Output
-
-S3_BUCKET ?= crossplane.releases
--include build/makelib/output.mk
-
-# ====================================================================================
 # Setup Go
 
 # Set a sane default so that the nprocs calculation below is less noisy on the initial
@@ -46,12 +40,13 @@ OSBASEIMAGE = gcr.io/distroless/static:nonroot
 # Setup Helm
 
 USE_HELM3 = true
-HELM_BASE_URL = https://charts.crossplane.io
-HELM_S3_BUCKET = crossplane.charts
+HELM3_VERSION = v3.11.2
+HELM_OCI_URL = xpkg.upbound.io/crossplane-contrib
 HELM_CHARTS = $(PROJECT_NAME)
 HELM_CHART_LINT_ARGS_$(PROJECT_NAME) = --set nameOverride='',imagePullSecrets=''
+
 -include build/makelib/k8s_tools.mk
--include build/makelib/helm.mk
+-include makelib/helmoci.mk
 # ====================================================================================
 # Setup Local Dev
 -include build/makelib/local.mk
