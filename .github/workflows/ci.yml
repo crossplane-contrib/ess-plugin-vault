@@ -55,6 +55,7 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_VERSION }}
           skip-go-installation: true
+          args: --timeout 3m
 
   check-diff:
     runs-on: ubuntu-20.04
