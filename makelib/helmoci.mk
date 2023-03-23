@@ -115,7 +115,7 @@ build.check: helm.dep
 build.artifacts: helm.build
 clean: helm.clean
 lint: helm.lint
-promote.artifacts: helm.push
+publish.artifacts: helm.push
 # ====================================================================================
 # Special Targets
 

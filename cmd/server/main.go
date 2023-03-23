@@ -56,7 +56,7 @@ func main() {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 	serverErrors := make(chan error, 1)
-	
+
 	tlsConfig, err := certificates.LoadMTLSConfig(filepath.Join(cli.CertsPath, "ca.crt"), filepath.Join(cli.CertsPath, "tls.crt"), filepath.Join(cli.CertsPath, "tls.key"), true)
 	ctx.FatalIfErrorf(err, "cannot load certificates")
 

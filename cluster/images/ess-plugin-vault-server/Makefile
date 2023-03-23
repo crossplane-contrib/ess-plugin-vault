@@ -17,9 +17,9 @@ img.build:
 	@$(OK) docker build $(IMAGE)
 
 img.publish:
-	@$(INFO) Skipping image publish for $(IMAGE)
-	@echo Publish is deferred to xpkg machinery
-	@$(OK) Image publish skipped for $(IMAGE)
+	@$(INFO) docker publish $(IMAGE)
+	@$(MAKE) BUILD_ARGS="--push" img.build.shared
+	@$(OK) docker publish $(IMAGE)
 
 img.build.shared:
 	@cp Dockerfile $(IMAGE_TEMP_DIR) || $(FAIL)
@@ -31,5 +31,5 @@ img.build.shared:
 
 img.promote:
 	@$(INFO) Skipping image promotion from $(FROM_IMAGE) to $(TO_IMAGE)
-	@echo Promote is deferred to xpkg machinery
+	@docker buildx imagetools create -t $(TO_IMAGE) $(FROM_IMAGE)
 	@$(OK) Image promotion skipped for $(FROM_IMAGE) to $(TO_IMAGE)
