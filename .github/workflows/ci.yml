@@ -10,12 +10,11 @@ on:
 
 env:
   # Common versions
-  GO_VERSION: '1.19.4'
-  GOLANGCI_VERSION: 'v1.49'
+  GO_VERSION: '1.20.1'
+  GOLANGCI_VERSION: 'v1.51.2'
   DOCKER_BUILDX_VERSION: 'v0.8.2'
 
   UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
-
 
 jobs:
   detect-noop:
@@ -31,7 +30,6 @@ jobs:
           paths_ignore: '["**.md", "**.png", "**.jpg"]'
           do_not_skip: '["workflow_dispatch", "schedule", "push"]'
           concurrent_skipping: false
-
 
   lint:
     runs-on: ubuntu-20.04
@@ -103,9 +101,7 @@ jobs:
 
   unit-tests:
     runs-on: ubuntu-20.04
-    needs:
-      - detect-noop
-      - build
+    needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
 
     steps:
@@ -133,9 +129,7 @@ jobs:
 
   publish-artifacts:
     runs-on: ubuntu-20.04
-    needs:
-      - detect-noop
-      - build
+    needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
 
     steps:
