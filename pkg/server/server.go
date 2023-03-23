@@ -49,7 +49,7 @@ type server struct {
 	listener   net.Listener
 	grpcServer *grpc.Server
 	kube       client.Client
-	ess.UnimplementedExternalSecretStoreServiceServer
+	ess.UnimplementedExternalSecretStorePluginServiceServer
 }
 
 func (s *server) Serve() error {
@@ -82,7 +82,7 @@ func NewServer(port int) (Server, error) {
 
 	s.listener = listener
 	s.kube = cl
-	tlsConfig, err := certificates.Load("/certs", true)
+	tlsConfig, err := certificates.LoadMTLSConfig("/certs/ca.crt", "/certs/tls.crt", "/certs/tls.key", true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to load certificates")
 	}
@@ -91,7 +91,7 @@ func NewServer(port int) (Server, error) {
 	s.grpcServer = grpc.NewServer(grpc.Creds(creds))
 	//s.grpcServer = grpc.NewServer(grpc.Creds(creds), grpc.UnaryInterceptor(middleFunc))
 
-	ess.RegisterExternalSecretStoreServiceServer(s.grpcServer, s)
+	ess.RegisterExternalSecretStorePluginServiceServer(s.grpcServer, s)
 	reflection.Register(s.grpcServer)
 
 	return s, nil
