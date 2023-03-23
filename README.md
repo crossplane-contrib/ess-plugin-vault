@@ -2,17 +2,44 @@
 
 Crossplane External Secret Store plugin for Hashicorp Vault.
 
-## Developing locally
+## Installation
 
-Start a local development environment with Kind with the plugin installed:
+Having a Crossplane installation where External Secret Stores alpha feature enabled, install the plugin with:
 
 ```
-make build local-dev
+CROSSPLANE_NAMESPACE=crossplane-system
+helm upgrade --install ess-plugin-vault oci://xpkg.upbound.io/crossplane-contrib/ess-plugin-vault --namespace $CROSSPLANE_NAMESPACE
 ```
 
-Follow this guide to get a local Vault instance running: https://docs.crossplane.io/v1.9/guides/vault-as-secret-store
+## Configuration
 
-Create the following manifests to configure Crossplane, Provider GCP and the Plugin:
+Create a `VaultConfig` resource to configure the plugin with the Vault server
+address, authentication method and token. You would then reference this config
+in the `StoreConfig` resources for Crossplane and Providers.
+
+See the following example which configures the plugin to connect to a local
+Vault instance running in the `vault-system` namespace with a token injected to
+`/vault/secrets/token` by the Vault Agent Injector:
+
+```yaml
+apiVersion: secrets.crossplane.io/v1alpha1
+kind: VaultConfig
+metadata:
+  name: local
+spec:
+  server: http://vault.vault-system:8200
+  mountPath: secret/
+  version: v2
+  auth:
+    method: Token
+    token:
+      source: Filesystem
+      fs:
+        path: /vault/secrets/token
+```
+
+And then reference this config in the `StoreConfig` resources for Crossplane and
+Provider GCP:
 
 ```yaml
 apiVersion: secrets.crossplane.io/v1alpha1
@@ -46,19 +73,12 @@ spec:
       name: local
 ```
 
-```yaml
-apiVersion: secrets.crossplane.io/v1alpha1
-kind: VaultConfig
-metadata:
-  name: local
-spec:
-  server: http://vault.vault-system:8200
-  mountPath: secret/
-  version: v2
-  auth:
-    method: Token
-    token:
-      source: Filesystem
-      fs:
-        path: /vault/secrets/token
+## Developing locally
+
+Start a local development environment with Kind with the plugin installed:
+
 ```
+make build local-dev
+```
+
+Follow this guide to get a local Vault instance running: https://docs.crossplane.io/v1.9/guides/vault-as-secret-store

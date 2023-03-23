@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/alecthomas/kong"
@@ -55,8 +56,8 @@ func main() {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 	serverErrors := make(chan error, 1)
-
-	tlsConfig, err := certificates.Load(cli.CertsPath, true)
+	
+	tlsConfig, err := certificates.LoadMTLSConfig(filepath.Join(cli.CertsPath, "ca.crt"), filepath.Join(cli.CertsPath, "tls.crt"), filepath.Join(cli.CertsPath, "tls.key"), true)
 	ctx.FatalIfErrorf(err, "cannot load certificates")
 
 	grpcServer := grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)))
@@ -65,7 +66,7 @@ func main() {
 	essServer, err := plugin.NewESSVault(kube, listener, grpcServer, plugin.WithLogger(logger))
 	ctx.FatalIfErrorf(err, "cannot create server")
 
-	proto.RegisterExternalSecretStoreServiceServer(grpcServer, essServer)
+	proto.RegisterExternalSecretStorePluginServiceServer(grpcServer, essServer)
 
 	go func() {
 		logger.Info("GRPC server listening on port", "port", cli.Port)

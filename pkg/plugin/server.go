@@ -39,7 +39,7 @@ type ESSVault struct {
 	kube       client.Client
 	logger     logging.Logger
 
-	ess.UnimplementedExternalSecretStoreServiceServer
+	ess.UnimplementedExternalSecretStorePluginServiceServer
 }
 
 type ESSVaultOption func(*ESSVault)
