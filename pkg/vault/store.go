@@ -91,8 +91,8 @@ func NewVaultStore(ctx context.Context, kube client.Client, cfg *v1alpha1.VaultC
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	if cfg.Spec.Namespace != "" {
-		c.SetNamespace(cfg.Spec.Namespace)
+	if cfg.Spec.Namespace != nil {
+		c.SetNamespace(*cfg.Spec.Namespace)
 	}
 
 	switch cfg.Spec.Auth.Method {

@@ -40,7 +40,7 @@ type VaultConfigSpec struct {
 	Server string `json:"server"`
 
 	// Namesoace is the Namespace of vault on which to operate
-	Namespace string `json:"namespace,omitempty"`
+	Namespace *string `json:"namespace,omitempty"`
 
 	// MountPath is the mount path of the KV secrets engine.
 	MountPath string `json:"mountPath"`
