@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +44,9 @@ func main() {
 	s := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(s)
 	ctx.FatalIfErrorf(err, "cannot add apis to scheme")
+
+	err = corev1.AddToScheme(s)
+	ctx.FatalIfErrorf(err, "cannot add coreapis to scheme")
 
 	cfg, err := ctrl.GetConfig()
 	ctx.FatalIfErrorf(errors.Wrap(err, "cannot get config"))
