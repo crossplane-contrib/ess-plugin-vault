@@ -48,6 +48,9 @@ Selector labels
 {{- define "ess-plugin-vault.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "ess-plugin-vault.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+{{- if .Values.commonLabels}}
+{{ toYaml .Values.commonLabels }}
+{{- end }}
 {{- end }}
 
 {{/*
