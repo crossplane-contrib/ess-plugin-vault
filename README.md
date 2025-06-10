@@ -1,5 +1,9 @@
 # ess-plugin-vault
 
+> **⚠️ DEPRECATION WARNING**  
+> External Secret Store (ESS) support has been removed in Crossplane v2. This plugin will no longer be compatible with Crossplane v2 and later versions. For more information, see [this comment](https://github.com/crossplane/crossplane/issues/5522#issuecomment-2948012043).
+
+
 Crossplane External Secret Store plugin for Hashicorp Vault.
 
 ## Installation
