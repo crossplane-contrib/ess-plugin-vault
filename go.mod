@@ -7,6 +7,7 @@ require (
 	github.com/crossplane/crossplane-runtime v0.20.0-rc.0.0.20230322150943-cf3c7a09628a
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/vault/api v1.9.0
+	github.com/hashicorp/vault/api/auth/approle v0.4.0
 	github.com/hashicorp/vault/api/auth/kubernetes v0.4.0
 	google.golang.org/grpc v1.51.0
 	k8s.io/api v0.26.1

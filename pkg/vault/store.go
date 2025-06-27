@@ -19,12 +19,14 @@ package kv
 import (
 	"context"
 	"crypto/x509"
+	"encoding/json"
 	"net/http"
 	"path/filepath"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/api/auth/approle"
 	"github.com/hashicorp/vault/api/auth/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -39,15 +41,19 @@ import (
 
 // Error strings.
 const (
-	errNoConfig            = "no Vault config provided"
-	errNewClient           = "cannot create new client"
-	errExtractCABundle     = "cannot extract ca bundle"
-	errAppendCABundle      = "cannot append ca bundle"
-	errExtractToken        = "cannot extract token"
-	errSetupKubernetesAuth = "cannot setup kubernetes auth"
-	errLoginKubernetesAuth = "cannot logging in with kubernetes auth"
-	errNoTokenProvided     = "token auth configured but no token provided"
-	errNoRoleProvided      = "kubernetes auth configured but no role provided"
+	errNoConfig                  = "no Vault config provided"
+	errNewClient                 = "cannot create new client"
+	errExtractCABundle           = "cannot extract ca bundle"
+	errAppendCABundle            = "cannot append ca bundle"
+	errExtractToken              = "cannot extract token"
+	errExtractAppRoleCredentials = "cannot extract approle credentials"
+	errSetupKubernetesAuth       = "cannot setup kubernetes auth"
+	errSetupAppRoleAuth          = "cannot setup approle auth"
+	errLoginKubernetesAuth       = "cannot logging in with kubernetes auth"
+	errLoginAppRoleAuth          = "cannot login with approle auth"
+	errNoTokenProvided           = "token auth configured but no token provided"
+	errNoRoleProvided            = "kubernetes auth configured but no role provided"
+	errNoAppRoleProvided         = "app role auth configured but no approle provided"
 
 	errGet    = "cannot get secret"
 	errApply  = "cannot apply secret"
@@ -64,6 +70,13 @@ type KVClient interface {
 // SecretStore is a Vault Secret Store.
 type SecretStore struct {
 	client KVClient
+}
+
+// appRoleAuthCredentials is a struct that holds the app role credentials.
+type appRoleAuthCredentials struct {
+	RoleID    string `json:"role_id"`
+	SecretID  string `json:"secret_id"`
+	MountPath string `json:"mountPath"`
 }
 
 // NewVaultStore returns a new Vault SecretStore.
@@ -132,6 +145,38 @@ func NewVaultStore(ctx context.Context, kube client.Client, cfg *v1alpha1.VaultC
 		if err != nil {
 			return nil, errors.Wrap(err, errLoginKubernetesAuth)
 		}
+	case v1alpha1.VaultAuthAppRole:
+		if cfg.Spec.Auth.AppRole == nil {
+			return nil, errors.New(errNoAppRoleProvided)
+		}
+
+		d, err := resource.CommonCredentialExtractor(ctx, cfg.Spec.Auth.AppRole.Source, kube, cfg.Spec.Auth.AppRole.CommonCredentialSelectors)
+		if err != nil {
+			return nil, errors.Wrap(err, errExtractAppRoleCredentials)
+		}
+
+		var cred appRoleAuthCredentials
+		if err := json.Unmarshal(d, &cred); err != nil {
+			return nil, errors.Wrap(err, errExtractAppRoleCredentials)
+		}
+
+		// default mount path is "approle", specify if different in the secret
+		var loginOpts []approle.LoginOption
+		if cred.MountPath != "" {
+			loginOpts = append(loginOpts, approle.WithMountPath(cred.MountPath))
+		}
+
+		auth, err := approle.NewAppRoleAuth(cred.RoleID, &approle.SecretID{FromString: cred.SecretID}, loginOpts...)
+		if err != nil {
+			return nil, errors.Wrap(err, errSetupAppRoleAuth)
+		}
+
+		resp, err := c.Auth().Login(ctx, auth)
+		if err != nil {
+			return nil, errors.Wrap(err, errLoginAppRoleAuth)
+		}
+		c.SetToken(resp.Auth.ClientToken)
+
 	default:
 		return nil, errors.Errorf("%q is not supported as an auth method", cfg.Spec.Auth.Method)
 	}

@@ -42,6 +42,50 @@ spec:
         path: /vault/secrets/token
 ```
 
+Below is an example of configuring the plugin to use the AppRole authentication:
+
+```yaml
+apiVersion: secrets.crossplane.io/v1alpha1
+kind: VaultConfig
+metadata:
+  name: vault-approle
+spec:
+  server: <server_address>
+  mountPath: <mount_path>
+  namespace: <namespace>
+  version: v2
+  auth:
+    method: AppRole
+    app_role:
+      source: Secret
+      secretRef:
+        namespace: <namespace>
+        name: <secret_name>
+        key: <key_name>
+```
+
+where the secret referenced in `secretRef` looks like below:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <secret_name>
+  namespace: <namespace>
+type: Opaque
+stringData:
+  credentials: |
+    {
+    "role_id": "roleid",
+    "secret_id": "secretid",
+    ## specify if the mountPath for approle auth is different from "approle"
+    "mountPath": ""
+    }
+```
+
+Note: Above examples shows setting `app_role` source to `Secret` but other sources like 
+`Environment`, `InjectedIdentity` and `Filesystem` can also be used.
+
 And then reference this config in the `StoreConfig` resources for Crossplane and
 Provider GCP:
 
